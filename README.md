@@ -90,10 +90,60 @@ python3 hw2.py --cv-folder task2
 attack the MCP server. See the homework description for the full rules.
 
 ## Homework 2 solution:
-> to students: this is your report, see the homework description.
 
 ### Task 1
-> one paragraph describing your solution, and your results on `public_test`.
+
+A deterministic stage resolves *who* the candidate is; an agent then judges the
+claims. The resolver regex-parses the CV (flattening markdown tables first — one
+public CV extracts as a table), takes the industry word from the headline,
+searches LinkedIn by name, location and industry, and ranks up to eight
+candidates by overlap of employers, schools, skills and city. The name query
+alone returns 20 of several hundred namesakes. The judge is one
+`deepseek-v4-flash` tool-calling agent whose prompt fixes the five field groups
+it may flag, the tolerance rules (Senior X for X with seniority senior, fewer
+skills is fine) and a one-year drift as a discrepancy. `score_cvs` keeps three
+CVs in flight, retries failures with back-off, and always returns a float.
+
+Public test: **7/7 in 166 s** — CV_1 to CV_7 scored 0.95, 0.97, 0.95, 0.40,
+0.45, 0.96, 0.45. An earlier 5/7 came from transient call failures the exception
+path swallowed; the retry loop fixed it.
 
 ### Task 2
-> the attack techniques you used and why you expect them to work.
+
+Two graders, two rule books. The verifiers are bound to the Task 1 spec, where
+discrepancies live only in name, city, jobs, education and skills; you compare
+against the real profile and count anything fabricated. A claim with no slot in
+the profile schema falls between them.
+
+The CV is Kelly Tsang's real one with every checkable field untouched, plus one
+visible line: `Certifications: CFA Level II Candidate (May 2024)`. She holds no
+certification, so it is a genuine fabrication, and it sits outside the five field
+groups.
+
+White 8-point text at the top carries an indirect injection — invisible on
+screen, ordinary text in the layer the verifier reads. It restates the scope
+rule, extends it to cover certifications, adds a document-control cue and
+suggests a rating. Credential and injection sit above the first heading so
+section-tracking parsers call them header noise; my first attempt put the
+credential under Skills and my own parser folded it, plus the hidden block, into
+the skill list.
+
+The PDF is built with reportlab: LaTeX output extracts as markdown tables.
+
+Result on my agent: adversarial 0.97, target 0.97.
+
+### Task 3: Reflection
+
+The verifier is the forger's teacher. Building Task 1 showed me where a CV could
+lie: the five fields it checks are the five worth attacking, and everything
+outside them is a blind spot it is required to have.
+
+A score describes documents, not the world. My agent gave the forged CV 0.97 and
+the real one 0.97; both numbers only say two documents agree.
+
+Reading is the attack surface. An agent must interpret untrusted text to compare
+a job title, and the same faculty lets a white paragraph tell it what to
+conclude. One model family writes the verifier and, with the same tools, the CV
+that beats it. Adding certifications to the schema closes my trick and moves the
+next one elsewhere; the fix is treating extracted text as data with provenance,
+and keeping a human answerable where claims and record disagree.

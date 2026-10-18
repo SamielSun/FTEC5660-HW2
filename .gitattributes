@@ -1,0 +1,3 @@
+# These are binary artefacts. Without this, core.autocrlf on Windows rewrites
+# LF as CRLF when the repository is checked out and the PDF no longer parses.
+*.pdf binary
